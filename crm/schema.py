@@ -1,7 +1,9 @@
 import graphene
 from graphene_django.types import DjangoObjectType
+from graphene_django.filter import DjangoFilterConnectionField
 from django.db import transaction, IntegrityError
 from .models import Customer, Product, Order
+from .filters import CustomerFilter, ProductFilter, OrderFilter
 from django.core.exceptions import ValidationError
 import re
 
@@ -9,19 +11,25 @@ import re
 class CustomerType(DjangoObjectType):
     class Meta:
         model = Customer
-        fields = ('id', 'name', 'email', 'phone')
+        fields = ('id', 'name', 'email', 'phone', 'created_at')
+        filterset_class = CustomerFilter
+        interfaces = (graphene.relay.Node,)
 
 class ProductType(DjangoObjectType):
     class Meta:
         model = Product
-        fields = ('id', 'name', 'price', 'stock')
+        fields = ('id', 'name', 'price', 'stock')  # Only model fields
+        filterset_class = ProductFilter
+        interfaces = (graphene.relay.Node,)
 
 class OrderType(DjangoObjectType):
     class Meta:
         model = Order
         fields = ('id', 'customer', 'products', 'order_date', 'total_amount')
+        filterset_class = OrderFilter
+        interfaces = (graphene.relay.Node,)
 
-# Input Types
+# Input Types for Mutations
 class CustomerInput(graphene.InputObjectType):
     name = graphene.String(required=True)
     email = graphene.String(required=True)
@@ -37,7 +45,32 @@ class OrderInput(graphene.InputObjectType):
     product_ids = graphene.List(graphene.ID, required=True)
     order_date = graphene.DateTime(required=False)
 
-# CreateCustomer Mutation
+# Input Types for Filters
+class CustomerFilterInput(graphene.InputObjectType):
+    name_icontains = graphene.String()
+    email_icontains = graphene.String()
+    created_at_gte = graphene.DateTime()
+    created_at_lte = graphene.DateTime()
+    phone_pattern = graphene.String()
+
+class ProductFilterInput(graphene.InputObjectType):
+    name_icontains = graphene.String()
+    price_gte = graphene.Decimal()
+    price_lte = graphene.Decimal()
+    stock_gte = graphene.Int()
+    stock_lte = graphene.Int()
+    low_stock = graphene.Boolean()
+
+class OrderFilterInput(graphene.InputObjectType):
+    total_amount_gte = graphene.Decimal()
+    total_amount_lte = graphene.Decimal()
+    order_date_gte = graphene.DateTime()
+    order_date_lte = graphene.DateTime()
+    customer_name = graphene.String()
+    product_name = graphene.String()
+    product_id = graphene.ID()
+
+# Mutations
 class CreateCustomer(graphene.Mutation):
     class Arguments:
         input = CustomerInput(required=True)
@@ -53,7 +86,7 @@ class CreateCustomer(graphene.Mutation):
                     raise ValidationError("Invalid phone format. Use formats like +1234567890 or 123-456-7890.")
 
             customer = Customer(name=input.name, email=input.email, phone=input.phone)
-            customer.full_clean()  # Run model validation
+            customer.full_clean()
             customer.save()
             return CreateCustomer(customer=customer, message="Customer created successfully")
         except IntegrityError:
@@ -61,7 +94,6 @@ class CreateCustomer(graphene.Mutation):
         except ValidationError as e:
             raise ValidationError(str(e))
 
-# BulkCreateCustomers Mutation
 class BulkCreateCustomers(graphene.Mutation):
     class Arguments:
         input = graphene.List(CustomerInput, required=True)
@@ -97,7 +129,6 @@ class BulkCreateCustomers(graphene.Mutation):
 
         return BulkCreateCustomers(customers=customers, errors=errors)
 
-# CreateProduct Mutation
 class CreateProduct(graphene.Mutation):
     class Arguments:
         input = ProductInput(required=True)
@@ -113,7 +144,6 @@ class CreateProduct(graphene.Mutation):
         except ValidationError as e:
             raise ValidationError(str(e))
 
-# CreateOrder Mutation
 class CreateOrder(graphene.Mutation):
     class Arguments:
         input = OrderInput(required=True)
@@ -140,23 +170,35 @@ class CreateOrder(graphene.Mutation):
         order = Order(customer=customer)
         order.save()
         order.products.set(products)
-        order.save()  # Updates total_amount
+        order.save()
         return CreateOrder(order=order)
 
-# Query (for completeness)
+# Query Class with Filtering
 class Query(graphene.ObjectType):
-    customers = graphene.List(CustomerType)
-    products = graphene.List(ProductType)
-    orders = graphene.List(OrderType)
+    all_customers = DjangoFilterConnectionField(CustomerType, filterset_class=CustomerFilter, order_by=graphene.String())
+    all_products = DjangoFilterConnectionField(ProductType, filterset_class=ProductFilter, order_by=graphene.String())
+    all_orders = DjangoFilterConnectionField(OrderType, filterset_class=OrderFilter, order_by=graphene.String())
 
-    def resolve_customers(self, info):
-        return Customer.objects.all()
+    def resolve_all_customers(self, info, **kwargs):
+        queryset = Customer.objects.all()
+        order_by = kwargs.get('order_by')
+        if order_by:
+            queryset = queryset.order_by(order_by)
+        return queryset
 
-    def resolve_products(self, info):
-        return Product.objects.all()
+    def resolve_all_products(self, info, **kwargs):
+        queryset = Product.objects.all()
+        order_by = kwargs.get('order_by')
+        if order_by:
+            queryset = queryset.order_by(order_by)
+        return queryset
 
-    def resolve_orders(self, info):
-        return Order.objects.all()
+    def resolve_all_orders(self, info, **kwargs):
+        queryset = Order.objects.all()
+        order_by = kwargs.get('order_by')
+        if order_by:
+            queryset = queryset.order_by(order_by)
+        return queryset
 
 # Mutation Class
 class Mutation(graphene.ObjectType):
