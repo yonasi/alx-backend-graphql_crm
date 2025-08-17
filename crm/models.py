@@ -7,7 +7,6 @@ class Customer(models.Model):
     phone = models.CharField(max_length=20, blank=True, null=True)
 
     def clean(self):
-        # Validate phone format
         if self.phone:
             phone_pattern = re.compile(r'^\+?\d{1,4}?[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d{4}$')
             if not phone_pattern.match(self.phone):
@@ -22,7 +21,6 @@ class Product(models.Model):
     stock = models.IntegerField(default=0)
 
     def clean(self):
-        # Validate price and stock
         if self.price <= 0:
             raise ValueError("Price must be positive.")
         if self.stock < 0:
@@ -38,7 +36,6 @@ class Order(models.Model):
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
     def save(self, *args, **kwargs):
-        # Calculate total_amount before saving
         super().save(*args, **kwargs)
         if self.products.exists():
             self.total_amount = sum(product.price for product in self.products.all())

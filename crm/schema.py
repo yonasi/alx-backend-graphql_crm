@@ -47,7 +47,6 @@ class CreateCustomer(graphene.Mutation):
 
     def mutate(self, info, input):
         try:
-            # Validate phone format
             if input.phone:
                 phone_pattern = re.compile(r'^\+?\d{1,4}?[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d{4}$')
                 if not phone_pattern.match(input.phone):
@@ -74,7 +73,7 @@ class BulkCreateCustomers(graphene.Mutation):
         customers = []
         errors = []
 
-        with transaction.atomic():  # Ensure atomic transaction
+        with transaction.atomic():
             for i, customer_input in enumerate(input):
                 try:
                     if customer_input.phone:
@@ -108,7 +107,7 @@ class CreateProduct(graphene.Mutation):
     def mutate(self, info, input):
         try:
             product = Product(name=input.name, price=input.price, stock=input.stock)
-            product.full_clean()  # Run model validation
+            product.full_clean()
             product.save()
             return CreateProduct(product=product)
         except ValidationError as e:
@@ -123,12 +122,10 @@ class CreateOrder(graphene.Mutation):
 
     def mutate(self, info, input):
         try:
-            # Validate customer
             customer = Customer.objects.get(id=input.customer_id)
         except Customer.DoesNotExist:
             raise ValidationError(f"Customer with ID {input.customer_id} does not exist")
 
-        # Validate products
         if not input.product_ids:
             raise ValidationError("At least one product must be selected")
 
@@ -140,12 +137,10 @@ class CreateOrder(graphene.Mutation):
             except Product.DoesNotExist:
                 raise ValidationError(f"Product with ID {product_id} does not exist")
 
-        # Create order
         order = Order(customer=customer)
         order.save()
-        order.products.set(products)  # Associate products
-        order.save()  # Trigger total_amount calculation
-
+        order.products.set(products)
+        order.save()  # Updates total_amount
         return CreateOrder(order=order)
 
 # Query (for completeness)
