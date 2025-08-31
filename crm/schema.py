@@ -5,7 +5,9 @@ from django.db import transaction, IntegrityError
 from .models import Customer, Product, Order
 from .filters import CustomerFilter, ProductFilter, OrderFilter
 from django.core.exceptions import ValidationError
-import re
+from crm.models import Product 
+from django.db.models import F
+
 
 # Django Object Types
 class CustomerType(DjangoObjectType):
@@ -206,3 +208,44 @@ class Mutation(graphene.ObjectType):
     bulk_create_customers = BulkCreateCustomers.Field()
     create_product = CreateProduct.Field()
     create_order = CreateOrder.Field()
+
+
+
+# Define Product type
+class ProductType(DjangoObjectType):
+    class Meta:
+        model = Product
+        fields = ('id', 'name', 'stock')
+
+# Define mutation
+class UpdateLowStockProducts(graphene.Mutation):
+    class Arguments:
+        pass  # No input arguments needed
+
+    updated_products = graphene.List(ProductType)
+    message = graphene.String()
+
+    def mutate(self, info):
+        # Query products with stock < 10
+        low_stock_products = Product.objects.filter(stock__lt=10)
+        
+        # Update stock by incrementing by 10
+        low_stock_products.update(stock=F('stock') + 10)
+        
+        # Fetch updated products for response
+        updated_products = Product.objects.filter(id__in=low_stock_products.values('id'))
+        
+        # Create success message
+        message = f"Updated {low_stock_products.count()} low-stock products"
+        
+        return UpdateLowStockProducts(
+            updated_products=updated_products,
+            message=message
+        )
+
+# Update Query class to include the mutation
+class Mutation(graphene.ObjectType):
+    update_low_stock_products = UpdateLowStockProducts.Field()
+
+# Update schema
+schema = graphene.Schema(mutation=Mutation)
