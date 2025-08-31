@@ -3,17 +3,18 @@ from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
 import logging
 from datetime import datetime
+import requests
 
 # Configure logging
 logging.basicConfig(
-    filename="/tmp/crmreportlog.txt",  
+    filename="/tmp/crm_report_log.txt",
     level=logging.INFO,
     format="%(asctime)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 @shared_task
-def generatecrmreport():  
+def generate_crm_report():  
     # Set up GraphQL client
     transport = AIOHTTPTransport(url="http://localhost:8000/graphql")
     client = Client(transport=transport, fetch_schema_from_transport=True)
