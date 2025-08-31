@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-
+from celery.schedules import crontab
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'graphene_django',
     'django_filters',
     'django_crontab',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -116,6 +117,24 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Existing settings...
+
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as the message broker
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'  # Redis for results
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Africa/Nairobi'  # Match Django TIME_ZONE
+
+
+
+CELERY_BEAT_SCHEDULE = {
+    'generate-crm-report': {
+        'task': 'crm.tasks.generate_crm_report',
+        'schedule': crontab(day_of_week='mon', hour=6, minute=0),
+    },
+}
 
 
 CRONJOBS = [
