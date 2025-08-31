@@ -6,14 +6,14 @@ from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
-    filename="/tmp/crm_report_log.txt",
+    filename="/tmp/crmreportlog.txt",  
     level=logging.INFO,
     format="%(asctime)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 @shared_task
-def generate_crm_report():
+def generatecrmreport():  
     # Set up GraphQL client
     transport = AIOHTTPTransport(url="http://localhost:8000/graphql")
     client = Client(transport=transport, fetch_schema_from_transport=True)

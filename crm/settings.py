@@ -3,6 +3,7 @@ from pathlib import Path
 from celery.schedules import crontab
 
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -117,15 +118,24 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
- #Celery Configuration
+# Celery Configuration
 CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as the message broker
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'  # Redis for results
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'Africa/Nairobi'  # Match Django TIME_ZONE
+CELERY_RESULT_SERIALGENERATE_CRM_REPORT = 'json'
+CELERY_TIMEZONE = 'Africa/Nairobi'
+
+
+
+CELERY_BEAT_SCHEDULE = {
+    'generate-crm-report': {
+        'task': 'crm.tasks.generatecrmreport',  # Updated task name
+        'schedule': crontab(day_of_week='mon', hour=6, minute=0),
+    },
+}
 
 CRONJOBS = [
-    ('*/5 * * * *', 'crm.cron.log_crm_heartbeat'),
+    ('*/5 * * * *', 'crm.cron.log_crm_heartbeat'), 
     ('0 */12 * * *', 'crm.cron.update_low_stock'),
 ]
